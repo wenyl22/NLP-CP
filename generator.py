@@ -2,53 +2,34 @@ from typing import List, Dict
 from cluster import LLMCluster
 from prompt.generator_prompt import *
 from transformers import Qwen2ForCausalLM, Qwen2Tokenizer
-import logging
 class LLMGenerator:
     def __init__(self, dir = None, num_samples = 5, device = "cpu"):
         if dir == None:
             dir = "/nvme1/wyl/caches/hub/models--Qwen--Qwen2.5-Math-1.5B-Instruct/snapshots/aafeb0fc6f22cbf0eaeed126eff8be45b0360a35/"
         self.num_samples = num_samples
         self.step_count = 0
-        # use Qwen2.5-Math-1.5B-Instruct
         self.model = Qwen2ForCausalLM.from_pretrained(dir).to(device)
         self.tokenizer = Qwen2Tokenizer.from_pretrained(dir)
         self.cluster = LLMCluster(device=device)
     def get_key_step(self, response: str) -> str:
-        splits = response.split("*Step")
-        if splits[0][-1] == "*":
-            splits[0] = splits[0][:-1]
+        splits = response.split(f"{self.step_count + 1}. **")
         return splits[0]
 
-    def generate_responses(self, context: str) -> List[str]:
-        responses = []
-        input_text = (
-            f"{generator_system_prompt}\n"
-            # f"{generator_system_response}\n"
-            f"{generator_user_prompt}"
-            f"{generator_user_response}\n"
-            f"{context}"
-        )
-        logging.info(f"input_text: {input_text}")
-        inputs = self.tokenizer.encode(input_text, return_tensors="pt").to(self.model.device)
-        for _ in range(self.num_samples):
-            print(f"Generating response: {_}/{self.num_samples}")
-            logging.info(f"Generating response: {_}/{self.num_samples}")
-            outputs = self.model.generate(inputs, temperature=0.8, max_length = 1024, do_sample = True)[0][inputs.size(1):].to("cpu")
-            response = self.tokenizer.decode(outputs, skip_special_tokens=True)
-            logging.info(f"response: {response}")
+    def generate_responses(self, text: str) -> List[str]:
+        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
+        generated_ids = self.model.generate(**model_inputs, max_new_tokens=512, do_sample = True, num_return_sequences = self.num_samples)
+        generated_ids = [output_ids[len(model_inputs.input_ids[0]):] for output_ids in generated_ids]
+        responses = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
+        for _, response in enumerate(responses):
             response = self.get_key_step(response)
-            logging.info(f"key step: {response}")
-            if response == None:
-                response = f"Solution complete.\n"
-            responses.append(response)
+            response = f"{self.step_count}. **{response}"
+            responses[_] = response
         return responses
-
 
     def cluster_similar_responses(self, context: str, responses: List[str]) -> List[List[str]]:
         clusters = []
         for i, response in enumerate(responses):
             print(f"Clustering response {i}/{len(responses)}")
-            logging.info(f"Clustering response {i}/{len(responses)}")
             added_to_cluster = False
             for cluster in clusters:
                 if self.cluster.is_same_step(context, cluster[0], response):
@@ -79,11 +60,16 @@ class LLMGenerator:
         }
 
     def evaluate(self, question: str, steps: str, step_count: int) -> Dict[str, any]:
-        context = f"{question}" + steps + f"**Step {step_count}**: "
         self.step_count = step_count
         self.cluster.step_count = step_count
+        messages = [
+            {"role": "system", "content": generator_system_prompt},
+            {"role": "user", "content": question}
+        ]
+        text = self.tokenizer.apply_chat_template(messages, tokenize=False,add_generation_prompt=True)
+        context = text + "\nThe step-by-step solution is as follows:\n" + steps + f"{step_count}. **"
         responses = self.generate_responses(context)
-        aggregated_result = self.aggregate_results(context, responses)
-        
+        context = text + "\nThe step-by-step solution is as follows:\n" + steps
+        aggregated_result = self.aggregate_results(text, responses)
         return aggregated_result
 

@@ -1,6 +1,6 @@
 ## one-shot prompt for the generator
 
-generator_system_prompt = "You are a helpful assistant who can provide step-by-step solutions to math problems. Your will be given a math problem and the the first x steps to solve it. You only need to provide the next one step in the solution. Always format your response as: **Step x+1**: <next step content>. Specially, if the solution is complete, please respond with **Step x+1**: Solution is complete. Generate only one nex step and do not say anything else. Moreover, the total step count should be less than 8. "
-# generator_system_response = "Got it!"
+generator_system_prompt = "Please reason step by step. You will be given the first few reasoning steps and you only need to generate one more step. Put your final answer within \\boxed{}. "
+
 generator_user_prompt = "Question: A merchant wants to make a choice of purchase between 2 purchase plans: jewelry worth $5,000 or electronic gadgets worth $8,000. His financial advisor speculates that the jewelry market will go up 2.5% while the electronic gadgets market will rise 1.2% within the same month. If the merchant is looking to maximize profit at the end of this month by making a choice, how much profit would this be?\n\n Step-by-Step Solution: \n**Step 1**: Calculate the profit if the merchant purchases jewelry. Profit = $5,000 * 2.5% = $125.\n**Step 2**: Calculate the profit if the merchant purchases electronic gadgets. Profit = $8,000 * 1.2% = $96.\n**Step 3**: $125 > $96, the merchant should purchase jewelry to maximize profit. The profit would be $125.\n**Step 4**: "
 generator_user_response = "Solution is complete.\n"

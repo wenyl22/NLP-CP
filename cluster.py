@@ -1,11 +1,7 @@
 from prompt.cluster_prompt import *
 from transformers import Qwen2ForCausalLM, Qwen2Tokenizer
-import logging
-logging.basicConfig(
-    filename='cluster.log',
-    level=logging.DEBUG,
-    format='%(message)s'
-)
+import time
+
 class LLMCluster:
     def __init__(self, dir = None, device = "cpu"):
         # use Qwen2.5-7B-Instruct
@@ -15,22 +11,18 @@ class LLMCluster:
         self.tokenizer = Qwen2Tokenizer.from_pretrained(dir)
         self.step_count = 0
     def is_same_step(self, content: str, a: str, b: str) -> bool:
-        split = content.split("**")[:-1]
-        content = "**".join(split)
-        prompt = content + f"Possibility 1: **Step {self.step_count}**: " + a
-        prompt = prompt + f"Possibility 2: **Step {self.step_count}**: " + b
+        prompt = content + f"Possibility 1: " + a
+        prompt = prompt + f"Possibility 2: " + b
         prompt += "\nDo possibility 1, 2 get the same conclusion? Response: "
-        input_text = (
-            f"{cluster_system_prompt}\n"
-            # f"{cluster_system_response}\n"
-            f"{cluster_user_prompt}"
-            f"{cluster_user_response}\n"
-            f"{prompt}"
-        )
-        logging.info(f"input_text: {input_text}")
-        inputs = self.tokenizer.encode(input_text, return_tensors="pt").to(self.model.device)
-        outputs = self.model.generate(inputs, max_length = inputs.size(-1) + 2)[0][inputs.size(1):].to("cpu")
-        response = self.tokenizer.decode(outputs, skip_special_tokens=True)
-        logging.info(f"clustering response: {response}")
-        logging.info("--------------------------------")
+        messages = [
+            {"role": "system", "content": cluster_system_prompt},
+            {"role": "user", "content": prompt}
+        ]
+        text = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
+        generated_ids = self.model.generate(**model_inputs, max_new_tokens=3)
+        generated_ids = [
+            output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+        ]
+        response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
         return "Same" in response or "same" in response
