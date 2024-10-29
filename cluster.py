@@ -50,17 +50,27 @@ class LLMCluster:
         clusters = []
         for cluster in response.split("**[")[1:]:
             cluster = cluster.split("]**")[0]
-            if len(cluster) == 0:
+            def check_validity(s):
+                if len(s) == 0:
+                    return False
+                s = s.split(",")
+                for i in s:
+                    if sum(x.isdigit() for x in i) == 0:
+                        return False
+                    if sum(x.isdigit() or x == " " or x == "\n" for x in i) != len(i):
+                        return False
+                return True
+            if not check_validity(cluster):
                 continue
             cluster = list(map(int, cluster.split(",")))
             lst = []
             for i in range(len(cluster)):
                 if cluster[i] <= len(responses):
                     lst.append(responses[cluster[i] - 1])
-                else:
-                    raise ValueError(f"Invalid cluster index {cluster[i]}")
             if len(lst) > 0:
                 clusters.append(lst)
+        if len(clusters) == 0:
+            clusters.append(responses)
         return clusters
 
 class NaiveCluster:

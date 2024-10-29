@@ -5,3 +5,4 @@ __pycache__
 *.sh
 data
 logs
+get.py

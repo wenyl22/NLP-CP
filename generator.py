@@ -31,16 +31,16 @@ class LLMGenerator:
 
     def cluster_similar_responses(self, context: str, responses: List[str]) -> List[List[str]]:
         clusters = []
-        if self.mode == "naive":
+        if self.mode == "naive" or self.mode == "llm":
             for i, response in enumerate(responses):
                 added_to_cluster = False
                 for cluster in clusters:
-                    if self.cluster["naive"].is_same_step(context, cluster[0], response):
+                    if self.cluster[self.mode].is_same_step(context, cluster[0], response):
                         cluster.append(response)
                         added_to_cluster = True
                 if not added_to_cluster:
                     clusters.append([response])
-        elif self.mode == "llm":
+        elif self.mode == "llm2":
             clusters = self.cluster["llm"].cluster(context, responses)
         return clusters
 
@@ -65,7 +65,10 @@ class LLMGenerator:
     def evaluate(self, question: str, steps: str, step_count: int, mode: str) -> Dict[str, any]:
         self.mode = mode
         self.step_count = step_count
-        self.cluster[mode].step_count = step_count
+        if mode == "llm2":
+            self.cluster["llm"].step_count = step_count
+        else:
+            self.cluster[mode].step_count = step_count
         messages = [
             {"role": "system", "content": generator_system_prompt},
             {"role": "user", "content": question}
