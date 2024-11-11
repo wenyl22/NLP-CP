@@ -4,5 +4,6 @@ __pycache__
 *.csv
 *.sh
 data
+logs_no_extract
 logs
 get.py

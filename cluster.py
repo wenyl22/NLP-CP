@@ -30,6 +30,22 @@ class LLMCluster:
         response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
         return "Same" in response or "same" in response
 
+    def extract(self, response: str) -> str:
+        messages = [
+            {"role": "system", "content": extract_system_prompt},
+            {"role": "user", "content": response}
+        ]
+        text = self.tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        text += "The key conclusion of the step is: "
+        model_inputs = self.tokenizer([text], return_tensors="pt").to(self.model.device)
+        generated_ids = self.model.generate(**model_inputs, max_new_tokens=512)
+        generated_ids = [
+            output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+        ]
+        response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        return response
+
+
     def cluster(self, context: str, responses: List[str]) -> List[List[str]]:
         prompt = context + "\n Possibilities:\n"
         for i, response in enumerate(responses):
@@ -46,7 +62,7 @@ class LLMCluster:
             output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
         ]
         response = self.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
-        print("!", len(responses), response)
+        print("Cluster response:", response)
         clusters = []
         for cluster in response.split("**[")[1:]:
             cluster = cluster.split("]**")[0]

@@ -1,4 +1,4 @@
-from generator import LLMGenerator
+from tot_generator import LLMGenerator
 import csv
 import json
 import time
@@ -6,10 +6,25 @@ import re
 import glob
 BEAM = 8
 BRANCH = 4
-generator = LLMGenerator(num_samples=BRANCH, device = "cuda:3")
+generator = LLMGenerator(num_samples=BRANCH, device = "cuda:7")
+def extract_boxed_content(text):
+    d = 0
+    lft = 0
+    rgt = 0
+    S = text.split("\\boxed")[1]
+    for i, c in enumerate(S):
+        if c == "{" and d == 0:
+            lft = i
+        elif c == "}" and d == 1:
+            rgt = i
+            break
+        if c == "{":
+            d += 1
+        elif c == "}":
+            d -= 1
+    return S[lft+1:rgt]
 
 def main(question: str, answer: str, name: str, mode: str):
-
     csv_file_path = f"logs/{name}_{mode}.csv"
     csv_fields = ["Step", "Weight", "Content"]
     with open(csv_file_path, mode='w') as file:
@@ -55,22 +70,6 @@ def main(question: str, answer: str, name: str, mode: str):
         if len(sols) >= BEAM:
             break
     ans_list = []
-    def extract_boxed_content(text):
-        d = 0
-        lft = 0
-        rgt = 0
-        S = text.split("\\boxed")[1]
-        for i, c in enumerate(S):
-            if c == "{" and d == 0:
-                lft = i
-            elif c == "}" and d == 1:
-                rgt = i
-                break
-            if c == "{":
-                d += 1
-            elif c == "}":
-                d -= 1
-        return S[lft+1:rgt]
     std_ans = extract_boxed_content(answer)
     for sol in sols:
         ans_list.append(extract_boxed_content(sol["content"]))
@@ -80,7 +79,6 @@ def main(question: str, answer: str, name: str, mode: str):
         summary_file.write("SOLUTIONS: \n")
         for i in range(len(ans_list)):
             summary_file.write(ans_list[i] + "|||")
-
     with open(result_file_path, "w") as result_file:
         result_file.write("QUESTION: \n" + question + "\n")
         result_file.write("ANSWER: \n" + answer + "\n")
@@ -88,7 +86,7 @@ def main(question: str, answer: str, name: str, mode: str):
             result_file.write("SOLUTION: \n" + sol["content"] + "\n")
         
 if __name__ == '__main__':
-    num = 100
+    num = 500
     files = sorted(glob.glob("data/MATH/test/*/*.json"))
     for file in files:
         field = file.split("/")[-2]
@@ -97,10 +95,9 @@ if __name__ == '__main__':
             data = json.load(f)
             if int(data["level"].split(" ")[-1]) < 3:
                 continue
-            main(data["problem"], data["solution"], f"MATH_{field}_" + str(i), "naive")
-            main(data["problem"], data["solution"], f"MATH_{field}_" + str(i), "llm")
+           # main(data["problem"], data["solution"], f"MATH_{field}_" + str(i), "naive")
+           # main(data["problem"], data["solution"], f"MATH_{field}_" + str(i), "llm")
             main(data["problem"], data["solution"], f"MATH_{field}_" + str(i), "llm2")
-
             num -= 1
         if num == 0:
             break
