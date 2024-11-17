@@ -1,6 +1,1 @@
-## one-shot prompt for the generator
-
-generator_system_prompt = "Please reason step by step. You will be given the first few reasoning steps and you only need to generate one more step. Put your final answer within \\boxed{}. "
-
-generator_user_prompt = "Question: A merchant wants to make a choice of purchase between 2 purchase plans: jewelry worth $5,000 or electronic gadgets worth $8,000. His financial advisor speculates that the jewelry market will go up 2.5% while the electronic gadgets market will rise 1.2% within the same month. If the merchant is looking to maximize profit at the end of this month by making a choice, how much profit would this be?\n\n Step-by-Step Solution: \n**Step 1**: Calculate the profit if the merchant purchases jewelry. Profit = $5,000 * 2.5% = $125.\n**Step 2**: Calculate the profit if the merchant purchases electronic gadgets. Profit = $8,000 * 1.2% = $96.\n**Step 3**: $125 > $96, the merchant should purchase jewelry to maximize profit. The profit would be $125.\n**Step 4**: "
-generator_user_response = "Solution is complete.\n"
+generator_sys_prompt = "Please reason step by step. You will be given the first few reasoning steps and you only need to generate one more step. Format your step as Step x. [Your answer]. Put you final answer in \\boxed{}. Do not say anything else.\n"
