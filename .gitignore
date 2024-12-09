@@ -3,9 +3,8 @@ __pycache__
 *.log
 *.csv
 *.sh
+history
 data
-logs_no_extract
-logs
 get.py
-logs2
 log*
+checkpoints

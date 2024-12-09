@@ -1,45 +1,27 @@
 from cot_generator import LLMGenerator
 from cluster import LLMCluster
 import json
-import glob
 from utils.utils import *
-BEAM = 16
-DEVICE = "cuda:1"
-generator = LLMGenerator(num_samples=BEAM, device = DEVICE, dir="/nvme1/wyl/caches/hub/models--Qwen--Qwen2.5-Math-1.5B/snapshots/4a83ca6e4526a4f2da3aa259ec36c259f66b2ab2/")
-cluster = LLMCluster(device = DEVICE)
+from utils.prm import ProcessRewardModel
+BEAM = 64
+DEVICE1 = "cuda:2"
+DEVICE2 = "cuda:3"
+generator = LLMGenerator(num_samples=BEAM, device = DEVICE1)
+prm = ProcessRewardModel(device=DEVICE2)
 def main(question: str, answer: str, name: str, mode: str):
-    summary_file_path = f"logss/{name}_{mode}.summary"
-    diversity_file_path = f"logss/{name}_{mode}.diversity"
-    temperature = float(mode.split("_")[1])
-    generator.temperature = temperature
+    summary_path = f"logs_cot_7b/{name}_{mode}.json"
     question = "Question: " + question + "\n"
     sols = generator.evaluate(question)
-    ans_list = []
-    std_ans = get_boxed(answer)
-    for _, sol in enumerate(sols):
-        if "\\boxed" not in sol:
-            continue
-        ans_list.append(get_boxed(sol))
-    conclusions = []
-    with open(summary_file_path, "w") as summary_file:
-        summary_file.write("QUESTION: \n" + question + "\n")
-        summary_file.write("STD: \n" + std_ans + "\n")
-        summary_file.write("ANSWER: \n")
-        for i in range(len(ans_list)):
-            summary_file.write(ans_list[i] + "|||")
-        summary_file.write("\n")
-        for sol in sols:
-            summary_file.write("SOLUTION: \n" + sol+ "\n")
-            conclusions.extend([A[2:] for A in sol.split("Step ")[1:]])
-    print(conclusions)
-    clusters = cluster.pair_wise_cluster(question, conclusions)
-    with open(diversity_file_path, "w") as diversity_file:
-        diversity_file.write(str(len(clusters)))
-        for i, cl in enumerate(clusters):
-            diversity_file.write(f'\n\n\n\n\n-----------------Cluster {i}---------------\n\n\n\n\n')
-            for c in cl:
-                diversity_file.write('<ELEMENT>' + c + '\n')
-    
+    # for each solution, record
+    # 1. token number
+    # 2. content
+    # 3. value given by reward model
+    for i, sol in enumerate(sols):
+        step_scores = prm.get_step_scores(question, sol["content"])
+        sols[i]["step_scores"] = step_scores.tolist()
+    with open(summary_path, "w") as file:
+        json.dump(sols, file)
+
         
 if __name__ == '__main__':
     with open("./data/math500.jsonl", "r") as file:
@@ -53,4 +35,4 @@ if __name__ == '__main__':
         question = data[i]["problem"]
         answer = data[i]["solution"]
         name = f"MATH_{field}_{num}"
-        main(question, answer, name, "cot_1.0")
+        main(question, answer, name, "cot")
